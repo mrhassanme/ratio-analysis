@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-from io import BytesIO
 
 st.set_page_config(
     page_title="Financial Analysis Tool",
@@ -72,7 +71,7 @@ with st.sidebar:
         "Banking/Finance", "Healthcare", "Real Estate", "Energy"
     ])
     currency = st.selectbox("Currency", [
-        "USD ($)", "GBP (£)", "EUR (€)", "MYR (RM)", "INR (₹)", "SGD (S$)"
+        "USD ($)", "GBP (£)", "EUR (€)", "MYR (RM)", "INR (₹)", "SGD (S$)", "PKR (₨)"
     ])
     curr_sym = currency.split("(")[1].replace(")", "").strip()
 
@@ -81,8 +80,7 @@ with st.sidebar:
     st.info(
         "1. Enter Current & Previous Year data\n"
         "2. Click **Run Full Analysis**\n"
-        "3. Review ratios, flags & charts\n"
-        "4. Export to Excel"
+        "3. Review ratios, flags & charts"
     )
 
 
@@ -92,7 +90,7 @@ with st.sidebar:
 
 title = f"📊 Financial Analysis — {company_name}" if company_name else "📊 Advanced Financial Analysis Tool"
 st.title(title)
-st.caption("Ratio analysis · Horizontal & vertical analysis · Red flag detection · Charts · Excel export")
+st.caption("Ratio analysis · Horizontal & vertical analysis · Red flag detection · Charts")
 st.markdown("---")
 
 
@@ -624,67 +622,3 @@ if run:
 
     if not flags:
         st.success("✅ No major red flags detected. Financial health looks solid.")
-
-
-    # ======================================================
-    # 7️⃣  EXPORT TO EXCEL
-    # ======================================================
-
-    st.markdown('<div class="section-header">📤 Export Report</div>', unsafe_allow_html=True)
-
-    output = BytesIO()
-
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        wb = writer.book
-
-        hdr_fmt = wb.add_format({
-            'bold': True, 'bg_color': '#4C72B0',
-            'font_color': 'white', 'border': 1, 'align': 'center'
-        })
-
-        # Summary sheet
-        summary_data = {
-            "Company":                [company_name or "N/A"],
-            "Industry":               [industry],
-            "Currency":               [curr_sym],
-            "Current Year Revenue":   [cy_revenue],
-            "Current Year Net Income":[cy_pat],
-            "Gross Margin %":         [round(gpm_cy,  2)],
-            "Net Margin %":           [round(npm_cy,  2)],
-            "Current Ratio":          [round(cr_cy,   2)],
-            "Debt to Equity":         [round(de_cy,   2)],
-            "Altman Z-Score":         [round(z_cy,    2)],
-            "Critical Flags":         [len(crit_flags)],
-            "Warnings":               [len(warn_flags)],
-        }
-        pd.DataFrame(summary_data).T.to_excel(writer, sheet_name="Summary", header=False)
-
-        # All ratios
-        df_all = pd.DataFrame(all_ratio_data, index=["Current Year", "Previous Year"]).T
-        df_all["Change"] = df_all["Current Year"] - df_all["Previous Year"]
-        df_all.to_excel(writer, sheet_name="All Ratios")
-
-        # Horizontal
-        df_horiz.to_excel(writer, sheet_name="Horizontal Analysis", index=False)
-
-        # Vertical – Income
-        df_inc_vert.to_excel(writer, sheet_name="Vertical - Income")
-
-        # Vertical – Balance Sheet
-        df_bs_vert.to_excel(writer, sheet_name="Vertical - Balance Sheet")
-
-        # Red Flags
-        flags_export = [(s, m) for s, m in flags] + [("✅ Positive", p) for p in positives]
-        pd.DataFrame(flags_export, columns=["Type", "Description"]).to_excel(
-            writer, sheet_name="Red Flags", index=False
-        )
-
-    e1, e2 = st.columns([2, 1])
-    e1.download_button(
-        label="📥 Download Excel Report",
-        data=output.getvalue(),
-        file_name=f"Financial_Analysis_{company_name or 'Report'}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True,
-    )
-    e2.info(f"Report includes {len(all_ratio_data)} ratios across 6 categories")
